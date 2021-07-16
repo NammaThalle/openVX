@@ -64,7 +64,7 @@ vx_status openvx_app(int argc, char *argv[])
 
     APP_DEBUG("DEBUG : Images Mapped\n");
     
-    fpuyvy = fopen("/mnt/work/ti/install/psdkra_old/vision_apps/apps/Excercise/openvx_app_3/image.uyvy", "rb");
+    fpuyvy = fopen("/mnt/work/ti/install/psdkra_old/vision_apps/apps/exercise/openvx_app_3/image.uyvy", "rb");
     if (!fpuyvy)
     {
         printf("Error opening image.uyvy");
