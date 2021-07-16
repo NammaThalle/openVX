@@ -4,14 +4,6 @@
 static const int IMAGE_WIDTH = 1920;
 static const int IMAGE_HEIGHT = 1080;
 
-#define LOG
-
-#ifdef LOG
-#define APP_LOG(f_, ...) printf((f_), ##__VA_ARGS__)
-#else
-#define APP_LOG(f_, ...)
-#endif
-
 app_obj_t openvx_app_obj;
 
 vx_status openvx_app_init(app_obj_t *obj)
@@ -29,7 +21,8 @@ vx_status openvx_app_init(app_obj_t *obj)
     obj->rectangle.end_x = IMAGE_WIDTH;
     obj->rectangle.end_y = IMAGE_HEIGHT;
 
-    obj->bytes_per_pixel = 2;
+    obj->uyvy_fp = fopen("/mnt/work/ti/install/psdkra_old/vision_apps/apps/exercise/openvx_app_4/image.uyvy", "wb+");
+    obj->rgb_fp = fopen("/mnt/work/ti/install/psdkra_old/vision_apps/apps/exercise/openvx_app_4/image.rgb", "wb");
 
     return VX_SUCCESS;
 }
@@ -47,22 +40,22 @@ vx_status openvx_app_create_graph(app_obj_t *obj)
     obj->rgb = vxCreateImage(obj->context, IMAGE_WIDTH, IMAGE_HEIGHT, VX_DF_IMAGE_RGB);
     APP_LOG("LOG : RGB IMAGE CREATED\n");
 
-    vxMapImagePatch(obj->rgb,
-                    &obj->rectangle,
-                    0,
-                    &obj->rgb_map_id,
-                    &obj->rgb_image_addr,
-                    &obj->rgb_data_ptr,
-                    VX_READ_AND_WRITE,
-                    VX_MEMORY_TYPE_HOST,
-                    VX_NOGAP_X);
-
     vxMapImagePatch(obj->uyvy,
                     &obj->rectangle,
                     0,
                     &obj->uyvy_map_id,
                     &obj->uyvy_image_addr,
                     &obj->uyvy_data_ptr,
+                    VX_READ_AND_WRITE,
+                    VX_MEMORY_TYPE_HOST,
+                    VX_NOGAP_X);
+
+    vxMapImagePatch(obj->rgb,
+                    &obj->rectangle,
+                    0,
+                    &obj->rgb_map_id,
+                    &obj->rgb_image_addr,
+                    &obj->rgb_data_ptr,
                     VX_READ_AND_WRITE,
                     VX_MEMORY_TYPE_HOST,
                     VX_NOGAP_X);
@@ -82,8 +75,6 @@ vx_status openvx_app_run_graph(app_obj_t *obj)
 
     vx_uint8 *pixel;
 
-    FILE *fp;
-
     pixel = (vx_uint8 *)obj->uyvy_data_ptr;
 
     for (int y = 0; y < IMAGE_HEIGHT; y++)
@@ -92,38 +83,41 @@ vx_status openvx_app_run_graph(app_obj_t *obj)
         {
             if (y < (IMAGE_HEIGHT / 3))
             {
-                *pixel = 84;
-        *(pixel + 1) = 76;
-        *(pixel + 2) = 255;
-        *(pixel + 3) = 76;
+                *pixel = 43;
+                *(pixel + 1) = 149;
+                *(pixel + 2) = 21;
+                *(pixel + 3) = 149;
                 // *pixel = 255;
                 // *(pixel + 1) = 87;
                 // *(pixel + 2) = 51;
             }
-            else if (y < (2 * IMAGE_HEIGHT / 3))
+            else if (y < (2 * IMAGE_HEIGHT / 3) && y > (IMAGE_HEIGHT / 3))
             {
-                *pixel = 43;
-        *(pixel + 1) = 149;
-        *(pixel + 2) = 21;
-        *(pixel + 3) = 149;
+                *pixel = 74;
+                *(pixel + 1) = 93;
+                *(pixel + 2) = 61;
+                *(pixel + 3) = 93;
                 // *pixel = 255;
                 // *(pixel + 1) = 255;
                 // *(pixel + 2) = 255;
             }
             else
             {
-                *pixel = 255;
-        *(pixel + 1) = 29;
-        *(pixel + 2) = 107;
-        *(pixel + 3) = 29;
+                *pixel = 101;
+                *(pixel + 1) = 46;
+                *(pixel + 2) = 94;
+                *(pixel + 3) = 46;
                 // *pixel = 0;
                 // *(pixel + 1) = 255;
                 // *(pixel + 2) = 0;
             }
-            pixel += obj->bytes_per_pixel;
+            pixel += UYVY_BYTES_PER_PIXEL;
         }
     }
-
+    
+    fwrite(obj->uyvy_data_ptr, 1, IMAGE_HEIGHT * IMAGE_WIDTH * UYVY_BYTES_PER_PIXEL, obj->uyvy_fp);
+    
+    fread(obj->uyvy_data_ptr, 1, IMAGE_WIDTH * IMAGE_HEIGHT * UYVY_BYTES_PER_PIXEL, obj->uyvy_fp);
     vx_node node = vxColorConvertNode(obj->graph, obj->uyvy, obj->rgb);
     APP_LOG("LOG : CONVERTING COLOR\n");
 
@@ -142,17 +136,9 @@ vx_status openvx_app_run_graph(app_obj_t *obj)
         }
     }
 
-    fp = fopen("/mnt/work/ti/install/psdkra_old/vision_apps/apps/exercise/openvx_app_4/image.rgb", "wb");
-    if (fp)
-    {
-        fwrite(obj->rgb_data_ptr, 1, IMAGE_WIDTH * IMAGE_HEIGHT * 3, fp);
-        fclose(fp);
-        APP_LOG("LOG : CREATED image.rgb\n");
-    }
-    else
-    {
-        APP_LOG("ERROR CREATING image.rgb\n");
-    }
+    int bytes = fwrite(obj->rgb_data_ptr, 1, IMAGE_WIDTH * IMAGE_HEIGHT * RGB_BYTES_PER_PIXEL, obj->rgb_fp);
+    APP_LOG("LOG : CREATED image.rgb\n");
+    APP_LOG("LOG : %d BYTES WRITTEN\n", bytes);
 
     return VX_SUCCESS;
 }
@@ -168,6 +154,9 @@ vx_status openvx_app_deinit(app_obj_t *obj)
     vxReleaseImage(&obj->uyvy);
 
     vxReleaseGraph(&obj->graph);
+
+    fclose(obj->rgb_fp);
+    fclose(obj->uyvy_fp);
 
     vxReleaseContext(&obj->context);
 

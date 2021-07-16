@@ -6,6 +6,17 @@
 #include <stdlib.h>
 #include <assert.h>
 
+
+#define LOG
+
+#ifdef LOG
+#define APP_LOG(f_, ...) printf((f_), ##__VA_ARGS__)
+#else
+#define APP_LOG(f_, ...)
+#endif
+
+#define UYVY_BYTES_PER_PIXEL    2
+#define RGB_BYTES_PER_PIXEL     3
 typedef struct 
 {
     vx_context context;
@@ -24,9 +35,9 @@ typedef struct
 
     void * uyvy_data_ptr;
     void * rgb_data_ptr;
-
-    vx_uint32 rgb_bytes_per_pixel;
-    vx_uint32 uyvy_bytes_per_pixel;
+    
+    FILE * uyvy_fp;
+    FILE * rgb_fp;
 
 } app_obj_t;
 
